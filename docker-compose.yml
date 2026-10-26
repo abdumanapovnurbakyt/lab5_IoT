@@ -1,0 +1,78 @@
+x-app: &app
+  build: .
+  image: lab5-telemetry
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  ingest:
+    <<: *app
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_QOS: "0"
+      DB_PATH: /data/telemetry.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ingest-data:/data        
+    cpus: 0.5                     
+    mem_limit: 512m
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  loadtest:
+    <<: *app
+    entrypoint: ["python", "-m", "tools.loadtest"]  
+    environment:
+      INGEST_URL: http://ingest:8000
+      MQTT_HOST: mosquitto
+    volumes:
+      - ./results:/app/results
+    depends_on:
+      ingest:
+        condition: service_healthy
+    profiles: ["tools"]
+
+  simulator:                      
+    <<: *app
+    entrypoint: ["python", "-m", "tools.simulator"]
+    environment:
+      MQTT_HOST: mosquitto
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    profiles: ["tools"]
+
+  tests:
+    <<: *app
+    command: ["python", "tests.py"]
+    profiles: ["tools"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - ingest
+    profiles: ["monitoring"]
+
+volumes:
+  ingest-data:

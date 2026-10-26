@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "telemetry.schema.json",
+  "title": "Сообщение телеметрии",
+  "type": "object",
+  "required": ["device_id", "seq", "ts", "temperature", "humidity", "battery_mv"],
+  "additionalProperties": false,
+  "properties": {
+    "device_id": {"type": "string", "pattern": "^dev-[0-9]{5}$"},
+    "seq": {"type": "integer", "minimum": 0},
+    "ts": {"type": "number", "exclusiveMinimum": 0},
+    "temperature": {"type": "number", "minimum": -40, "maximum": 85},
+    "humidity": {"type": "number", "minimum": 0, "maximum": 100},
+    "battery_mv": {"type": "integer", "minimum": 2000, "maximum": 4300}
+  }
+}

@@ -1,0 +1,6 @@
+paho-mqtt>=2.0,<3
+fastapi>=0.110
+uvicorn>=0.27
+jsonschema>=4.20
+prometheus-client>=0.20
+matplotlib>=3.8
